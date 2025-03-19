@@ -22,7 +22,8 @@ ___INFO___
   "description": "Tag that collects user event data from your site and sends it to BMS to track visits, build audiences, power recommendations, and optimize ads.",
   "containerContexts": [
     "WEB"
-  ]
+  ],
+  "categories": ["ANALYTICS", "TAG_MANAGEMENT", "UTILITY"]
 }
 
 
