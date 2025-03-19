@@ -1,5 +1,5 @@
 homepage: "https://bluems.com"
 documentation: "https://docs.bluems.com"
 versions:
-  - sha: "07d69a0"
+  - sha: "acea8e52f6345393583d85f96aa6836932de08d8"
     changeNotes: "Initial version of the template."
