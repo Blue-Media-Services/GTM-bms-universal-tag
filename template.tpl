@@ -47,7 +47,7 @@ ___TEMPLATE_PARAMETERS___
       }
     ],
     "valueHint": "0000000000",
-    "help": "By enabling this, when a user clicks on an ad from BMS you will have metrics related to how long the page took to load and that the user reched the destination."
+    "help": "Please enter your BMS Account ID so we can properly set up the tags in GTM."
   },
   {
     "type": "SELECT",
