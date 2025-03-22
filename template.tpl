@@ -228,11 +228,12 @@ ___TEMPLATE_PARAMETERS___
 
 ___SANDBOXED_JS_FOR_WEB_TEMPLATE___
 
+const encodeUriComponent = require('encodeUriComponent');
 const injectScript = require('injectScript');
 const sendPixel = require('sendPixel');
 const setInWindow = require('setInWindow');
 
-const accountId = data.accountId;
+const accountId = encodeUriComponent(data.accountId);
 
 let url;
 
@@ -247,24 +248,28 @@ if (run('adPageLoadedTracker')) {
 }
 
 if (run('catalog')) {
-  const catalogId = data.catalogId;
-  const productId = data.productId;
+  const trackEvent = encodeUriComponent(data.trackEvent);
+  const catalogId = encodeUriComponent(data.catalogId);
+  const productId = encodeUriComponent(data.productId);
 
-  url = "https://track.cs2.bluems.com/v1/" + data.trackEvent + "?acc=" + accountId + "&c=" +catalogId + "&o=" + productId;
+  url = "https://track.cs2.bluems.com/v1/" + trackEvent + "?acc=" + accountId + "&c=" + catalogId + "&o=" + productId;
 
   sendPixel(url, undefined, data.gtmOnFailure);
 }
 
 if (run('trackUserActivity')) {
-  const trackerId = data.trackerId;
-  const eventId = data.eventId;
+  const trackerId = encodeUriComponent(data.trackerId);
+  const eventId = encodeUriComponent(data.eventId);
 
   url = "https://track.dmp.bluems.com/v1/activity?acc=" + accountId + "&e=" + eventId + "&t=" + trackerId;
 
   const dataArray = data.trackerCustomData || [];
 
   dataArray.forEach(row => {
-    url += "&" + row.key + "=" + row.value;
+    const key = encodeUriComponent(row.key);
+    const value = encodeUriComponent(row.value);
+
+    url += "&" + key + "=" + value;
   });    
 
   sendPixel(url, undefined, data.gtmOnFailure);
@@ -275,7 +280,7 @@ if (run('cookiePool')) {
   
   const bms_cookie_pool_q = {
     acc: accountId,
-    cpid: data.cookiePoolId
+    cpid: encodeUriComponent(data.cookiePoolId)
   };
   
   setInWindow("bms_cookie_pool_q", bms_cookie_pool_q, true);
