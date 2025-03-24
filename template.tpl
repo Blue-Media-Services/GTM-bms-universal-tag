@@ -133,7 +133,7 @@ ___TEMPLATE_PARAMETERS___
         "type": "EQUALS"
       }
     ],
-    "help": "The Page Load Tracking Tag shows if ad clicks lead to real visits by tracking page loads and load times. It improves ad performance insights, detects fraud, and helps you optimize campaigns with accurate, secure data."
+    "help": "Create a catalog and install a pixel to track events like Product Viewed, Added to Cart, and Ordered. This data powers metrics and Recommendation Models to optimize your ads."
   },
   {
     "type": "GROUP",
