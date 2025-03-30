@@ -236,15 +236,44 @@ const setInWindow = require('setInWindow');
 const accountId = encodeUriComponent(data.accountId);
 
 let url;
+let pendingCalls = 0;
+let hasFailure = false;
 
 function run(action) {
   return data.action === action;
 }
 
+function trackAsyncCall(asyncFunction) {
+  pendingCalls++;
+  asyncFunction(
+    () => {
+      pendingCalls--;
+      checkCompletion();
+    },
+    () => {
+      hasFailure = true;
+      pendingCalls--;
+      checkCompletion();
+    }
+  );
+}
+
+function checkCompletion() {
+  if (pendingCalls === 0) {
+    if (hasFailure) {
+      data.gtmOnFailure();
+    } else {
+      data.gtmOnSuccess();
+    }
+  }
+}
+
 if (run('adPageLoadedTracker')) {
   url = "https://track.ads.bluems.com/v1/ad-page-load-tracker.min.js";
 
-  injectScript(url, undefined, data.gtmOnFailure, url);
+  trackAsyncCall((onSuccess, onFailure) => {
+    injectScript(url, onSuccess, onFailure, url);
+  });
 }
 
 if (run('catalog')) {
@@ -254,7 +283,9 @@ if (run('catalog')) {
 
   url = "https://track.cs2.bluems.com/v1/" + trackEvent + "?acc=" + accountId + "&c=" + catalogId + "&o=" + productId;
 
-  sendPixel(url, undefined, data.gtmOnFailure);
+  trackAsyncCall((onSuccess, onFailure) => {
+    sendPixel(url, onSuccess, onFailure);
+  });
 }
 
 if (run('trackUserActivity')) {
@@ -270,24 +301,27 @@ if (run('trackUserActivity')) {
     const value = encodeUriComponent(row.value);
 
     url += "&" + key + "=" + value;
-  });    
+  });
 
-  sendPixel(url, undefined, data.gtmOnFailure);
+  trackAsyncCall((onSuccess, onFailure) => {
+    sendPixel(url, onSuccess, onFailure);
+  });
 }
 
 if (run('cookiePool')) {
   url = "https://sync.cookie-pool.dmp.bluems.com/v1/script.min.js?datalayer=bms_cookie_pool_q";
-  
+
   const bms_cookie_pool_q = {
     acc: accountId,
     cpid: encodeUriComponent(data.cookiePoolId)
   };
-  
-  setInWindow("bms_cookie_pool_q", bms_cookie_pool_q, true);
-  injectScript(url, undefined, data.gtmOnFailure, url);
-}
 
-data.gtmOnSuccess();
+  setInWindow("bms_cookie_pool_q", bms_cookie_pool_q, true);
+
+  trackAsyncCall((onSuccess, onFailure) => {
+    injectScript(url, onSuccess, onFailure, url);
+  });
+}
 
 return url;
 
@@ -425,33 +459,88 @@ scenarios:
   code: |-
     data.action = 'adPageLoadedTracker';
 
+    mock('injectScript', (url, onSuccess, onFailure) => 
+      onSuccess()
+    );
+
     const url = runCode(data);
 
     assertThat(url).isEqualTo("https://track.ads.bluems.com/v1/ad-page-load-tracker.min.js");
     assertApi("injectScript").wasCalled();
     assertApi("gtmOnSuccess").wasCalled();
+- name: Check if gtm fails when scripts are not injected correctly for loaded tracker
+  code: |-
+    data.action = 'adPageLoadedTracker';
+
+    mock('injectScript', (url, onSuccess, onFailure) => 
+      onFailure()
+    );
+    
+    const url = runCode(data);
+    
+    assertThat(url).isEqualTo("https://track.ads.bluems.com/v1/ad-page-load-tracker.min.js");
+    assertApi("injectScript").wasCalled();
+    assertApi("gtmOnFailure").wasCalled();
 - name: Check if tracking pixels as track procuct are being sent
   code: |-
     data.action = 'catalog';
+
+    mock('sendPixel', (url, onSuccess, onFailure) => 
+      onSuccess()
+    );
 
     const url = runCode(data);
 
     assertThat(url).isEqualTo("https://track.cs2.bluems.com/v1/hi?acc=12345&c=67890&o=54321");
     assertApi("sendPixel").wasCalled();
     assertApi("gtmOnSuccess").wasCalled();
+- name: Check if gtm fails when scripts are not injected correctly for track product
+  code: |-
+    data.action = 'catalog';
+
+    mock('sendPixel', (url, onSuccess, onFailure) => 
+      onFailure()
+    );
+    
+    const url = runCode(data);
+    
+    assertThat(url).isEqualTo("https://track.cs2.bluems.com/v1/hi?acc=12345&c=67890&o=54321");
+    assertApi("sendPixel").wasCalled();
+    assertApi("gtmOnFailure").wasCalled();
 - name: Check if tracking pixels as track integration are being sent
   code: |-
     data.action = 'trackUserActivity';
+
+    mock('sendPixel', (url, onSuccess, onFailure) => 
+      onSuccess()
+    );
 
     const url = runCode(data);
 
     assertThat(url).isEqualTo("https://track.dmp.bluems.com/v1/activity?acc=12345&e=pageView&t=abc123&source=google");
     assertApi("sendPixel").wasCalled();
     assertApi("gtmOnSuccess").wasCalled();
+- name: Check if gtm fails when scripts are not injected correctly for track integration
+  code: |-
+    data.action = 'trackUserActivity';
+
+    mock('sendPixel', (url, onSuccess, onFailure) => 
+      onFailure()
+    );
+    
+    const url = runCode(data);
+    
+    assertThat(url).isEqualTo("https://track.dmp.bluems.com/v1/activity?acc=12345&e=pageView&t=abc123&source=google");
+    assertApi("sendPixel").wasCalled();
+    assertApi("gtmOnFailure").wasCalled();
 - name: Check if tracking pixels as track integration are being sent without data
   code: |-
     data.action = 'trackUserActivity';
     data.trackerCustomData = [];
+
+    mock('sendPixel', (url, onSuccess, onFailure) => 
+      onSuccess()
+    );
 
     const url = runCode(data);
 
@@ -464,6 +553,10 @@ scenarios:
     data.action = 'trackUserActivity';
     data.trackerCustomData = [{ key: "source", value: "google" },{ key: "target", value: "bms" }];
 
+    mock('sendPixel', (url, onSuccess, onFailure) => 
+      onSuccess()
+    );
+
     const url = runCode(data);
 
     assertThat(url).isEqualTo("https://track.dmp.bluems.com/v1/activity?acc=12345&e=pageView&t=abc123&source=google&target=bms");
@@ -473,12 +566,30 @@ scenarios:
   code: |-
     data.action = 'cookiePool';
 
+    mock('injectScript', (url, onSuccess, onFailure) => 
+      onSuccess()
+    );
+
     const url = runCode(data);
 
     assertThat(url).isEqualTo("https://sync.cookie-pool.dmp.bluems.com/v1/script.min.js?datalayer=bms_cookie_pool_q");
     assertApi("setInWindow").wasCalled();
     assertApi("injectScript").wasCalled();
     assertApi("gtmOnSuccess").wasCalled();
+- name: Check if gtm fails when scripts are not injected correctly for cookie pool
+  code: |-
+    data.action = 'cookiePool';
+
+    mock('injectScript', (url, onSuccess, onFailure) => 
+      onFailure()
+    );
+    
+    const url = runCode(data);
+    
+    assertThat(url).isEqualTo("https://sync.cookie-pool.dmp.bluems.com/v1/script.min.js?datalayer=bms_cookie_pool_q");
+    assertApi("setInWindow").wasCalled();
+    assertApi("injectScript").wasCalled();
+    assertApi("gtmOnFailure").wasCalled();
 setup: |-
   var data = {
     accountId: "12345",
