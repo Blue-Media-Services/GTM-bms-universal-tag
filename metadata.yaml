@@ -1,5 +1,5 @@
 homepage: "https://bluems.com"
-documentation: "https://docs.bluems.com"
+documentation: "https://docs.bluems.com/en_us/third-party-integrations/google-tag-manager"
 versions:
   - sha: "51a262a65edcb1b4304c7ccc23ad49ce7c8bad16"
     changeNotes: "Initial version of the template."
