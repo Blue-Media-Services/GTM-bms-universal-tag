@@ -23,7 +23,11 @@ ___INFO___
   "containerContexts": [
     "WEB"
   ],
-  "categories": ["ANALYTICS", "TAG_MANAGEMENT", "UTILITY"]
+  "categories": [
+    "ANALYTICS",
+    "TAG_MANAGEMENT",
+    "UTILITY"
+  ]
 }
 
 
@@ -70,6 +74,10 @@ ___TEMPLATE_PARAMETERS___
       {
         "value": "catalog",
         "displayValue": "Count event in a Catalog"
+      },
+      {
+        "value": "tagContainer",
+        "displayValue": "Tag container"
       }
     ],
     "simpleValueType": true
@@ -222,6 +230,52 @@ ___TEMPLATE_PARAMETERS___
       }
     ],
     "help": "A Cookie Pool is a database of user cookies that helps segment audiences, customize ads, and retarget users based on behavior. It improves ad relevance, tracks performance, and controls ad frequency."
+  },
+  {
+    "type": "GROUP",
+    "name": "tagContainer",
+    "displayName": "Tag Container",
+    "groupStyle": "NO_ZIPPY",
+    "subParams": [
+      {
+        "type": "TEXT",
+        "name": "tagContainerId",
+        "displayName": "Tag Container ID",
+        "simpleValueType": true,
+        "valueValidators": [
+          {
+            "type": "NON_EMPTY"
+          }
+        ]
+      },
+      {
+        "type": "SIMPLE_TABLE",
+        "name": "tagContainerCustomData",
+        "displayName": "Custom data",
+        "simpleTableColumns": [
+          {
+            "defaultValue": "",
+            "displayName": "Key",
+            "name": "key",
+            "type": "TEXT"
+          },
+          {
+            "defaultValue": "",
+            "displayName": "Value",
+            "name": "value",
+            "type": "TEXT"
+          }
+        ]
+      }
+    ],
+    "enablingConditions": [
+      {
+        "paramName": "action",
+        "paramValue": "tagContainer",
+        "type": "EQUALS"
+      }
+    ],
+    "help": "Tag container allows you to create a customized place to install multiple tags and scripts from a single piece of code."
   }
 ]
 
@@ -323,6 +377,29 @@ if (run('cookiePool')) {
   });
 }
 
+if (run('tagContainer')) {
+  const tagContainerId = encodeUriComponent(data.tagContainerId);
+  
+  url = "https://tag.bluemsusercontent.com/v1/" + accountId + "/" + tagContainerId + "/script.min.js?datalayer=bms_tag_container_q";
+  
+  const bms_tag_container_q = {};
+  
+  const dataArray = data.tagContainerCustomData || [];
+
+  dataArray.forEach(row => {
+    const key = encodeUriComponent(row.key);
+    const value = encodeUriComponent(row.value);
+
+    bms_tag_container_q[key] = value;
+  });
+  
+  setInWindow("bms_tag_container_q", bms_tag_container_q, true);
+  
+  trackAsyncCall((onSuccess, onFailure) => {
+    injectScript(url, onSuccess, onFailure, url);
+  });
+}
+
 return url;
 
 
@@ -377,6 +454,10 @@ ___WEB_PERMISSIONS___
               {
                 "type": 1,
                 "string": "https://*.bluems.com/"
+              },
+              {
+                "type": 1,
+                "string": "https://tag.bluemsusercontent.com/"
               }
             ]
           }
@@ -438,6 +519,45 @@ ___WEB_PERMISSIONS___
                     "boolean": false
                   }
                 ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "bms_tag_container_q"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  }
+                ]
               }
             ]
           }
@@ -456,140 +576,71 @@ ___TESTS___
 
 scenarios:
 - name: Check if scripts are injected loaded tracker correctly
-  code: |-
-    data.action = 'adPageLoadedTracker';
-
-    mock('injectScript', (url, onSuccess, onFailure) => 
-      onSuccess()
-    );
-
-    const url = runCode(data);
-
-    assertThat(url).isEqualTo("https://track.ads.bluems.com/v1/ad-page-load-tracker.min.js");
-    assertApi("injectScript").wasCalled();
-    assertApi("gtmOnSuccess").wasCalled();
+  code: "data.action = 'adPageLoadedTracker';\n\nmock('injectScript', (url, onSuccess,\
+    \ onFailure) => \n  onSuccess()\n);\n\nconst url = runCode(data);\n\nassertThat(url).isEqualTo(\"\
+    https://track.ads.bluems.com/v1/ad-page-load-tracker.min.js\");\nassertApi(\"\
+    injectScript\").wasCalled();\nassertApi(\"gtmOnSuccess\").wasCalled();"
 - name: Check if gtm fails when scripts are not injected correctly for loaded tracker
-  code: |-
-    data.action = 'adPageLoadedTracker';
-
-    mock('injectScript', (url, onSuccess, onFailure) => 
-      onFailure()
-    );
-    
-    const url = runCode(data);
-    
-    assertThat(url).isEqualTo("https://track.ads.bluems.com/v1/ad-page-load-tracker.min.js");
-    assertApi("injectScript").wasCalled();
-    assertApi("gtmOnFailure").wasCalled();
+  code: "data.action = 'adPageLoadedTracker';\n\nmock('injectScript', (url, onSuccess,\
+    \ onFailure) => \n  onFailure()\n);\n\nconst url = runCode(data);\n\nassertThat(url).isEqualTo(\"\
+    https://track.ads.bluems.com/v1/ad-page-load-tracker.min.js\");\nassertApi(\"\
+    injectScript\").wasCalled();\nassertApi(\"gtmOnFailure\").wasCalled();"
 - name: Check if tracking pixels as track procuct are being sent
-  code: |-
-    data.action = 'catalog';
-
-    mock('sendPixel', (url, onSuccess, onFailure) => 
-      onSuccess()
-    );
-
-    const url = runCode(data);
-
-    assertThat(url).isEqualTo("https://track.cs2.bluems.com/v1/hi?acc=12345&c=67890&o=54321");
-    assertApi("sendPixel").wasCalled();
-    assertApi("gtmOnSuccess").wasCalled();
+  code: "data.action = 'catalog';\n\nmock('sendPixel', (url, onSuccess, onFailure)\
+    \ => \n  onSuccess()\n);\n\nconst url = runCode(data);\n\nassertThat(url).isEqualTo(\"\
+    https://track.cs2.bluems.com/v1/hi?acc=12345&c=67890&o=54321\");\nassertApi(\"\
+    sendPixel\").wasCalled();\nassertApi(\"gtmOnSuccess\").wasCalled();"
 - name: Check if gtm fails when scripts are not injected correctly for track product
-  code: |-
-    data.action = 'catalog';
-
-    mock('sendPixel', (url, onSuccess, onFailure) => 
-      onFailure()
-    );
-    
-    const url = runCode(data);
-    
-    assertThat(url).isEqualTo("https://track.cs2.bluems.com/v1/hi?acc=12345&c=67890&o=54321");
-    assertApi("sendPixel").wasCalled();
-    assertApi("gtmOnFailure").wasCalled();
+  code: "data.action = 'catalog';\n\nmock('sendPixel', (url, onSuccess, onFailure)\
+    \ => \n  onFailure()\n);\n\nconst url = runCode(data);\n\nassertThat(url).isEqualTo(\"\
+    https://track.cs2.bluems.com/v1/hi?acc=12345&c=67890&o=54321\");\nassertApi(\"\
+    sendPixel\").wasCalled();\nassertApi(\"gtmOnFailure\").wasCalled();"
 - name: Check if tracking pixels as track integration are being sent
-  code: |-
-    data.action = 'trackUserActivity';
-
-    mock('sendPixel', (url, onSuccess, onFailure) => 
-      onSuccess()
-    );
-
-    const url = runCode(data);
-
-    assertThat(url).isEqualTo("https://track.dmp.bluems.com/v1/activity?acc=12345&e=pageView&t=abc123&source=google");
-    assertApi("sendPixel").wasCalled();
-    assertApi("gtmOnSuccess").wasCalled();
+  code: "data.action = 'trackUserActivity';\n\nmock('sendPixel', (url, onSuccess,\
+    \ onFailure) => \n  onSuccess()\n);\n\nconst url = runCode(data);\n\nassertThat(url).isEqualTo(\"\
+    https://track.dmp.bluems.com/v1/activity?acc=12345&e=pageView&t=abc123&source=google\"\
+    );\nassertApi(\"sendPixel\").wasCalled();\nassertApi(\"gtmOnSuccess\").wasCalled();"
 - name: Check if gtm fails when scripts are not injected correctly for track integration
-  code: |-
-    data.action = 'trackUserActivity';
-
-    mock('sendPixel', (url, onSuccess, onFailure) => 
-      onFailure()
-    );
-    
-    const url = runCode(data);
-    
-    assertThat(url).isEqualTo("https://track.dmp.bluems.com/v1/activity?acc=12345&e=pageView&t=abc123&source=google");
-    assertApi("sendPixel").wasCalled();
-    assertApi("gtmOnFailure").wasCalled();
+  code: "data.action = 'trackUserActivity';\n\nmock('sendPixel', (url, onSuccess,\
+    \ onFailure) => \n  onFailure()\n);\n\nconst url = runCode(data);\n\nassertThat(url).isEqualTo(\"\
+    https://track.dmp.bluems.com/v1/activity?acc=12345&e=pageView&t=abc123&source=google\"\
+    );\nassertApi(\"sendPixel\").wasCalled();\nassertApi(\"gtmOnFailure\").wasCalled();"
 - name: Check if tracking pixels as track integration are being sent without data
-  code: |-
-    data.action = 'trackUserActivity';
-    data.trackerCustomData = [];
-
-    mock('sendPixel', (url, onSuccess, onFailure) => 
-      onSuccess()
-    );
-
-    const url = runCode(data);
-
-    assertThat(url).isEqualTo("https://track.dmp.bluems.com/v1/activity?acc=12345&e=pageView&t=abc123");
-    assertApi("sendPixel").wasCalled();
-    assertApi("gtmOnSuccess").wasCalled();
+  code: "data.action = 'trackUserActivity';\ndata.trackerCustomData = [];\n\nmock('sendPixel',\
+    \ (url, onSuccess, onFailure) => \n  onSuccess()\n);\n\nconst url = runCode(data);\n\
+    \nassertThat(url).isEqualTo(\"https://track.dmp.bluems.com/v1/activity?acc=12345&e=pageView&t=abc123\"\
+    );\nassertApi(\"sendPixel\").wasCalled();\nassertApi(\"gtmOnSuccess\").wasCalled();"
 - name: Check if tracking pixels as track integration are being sent with more than
     one data
-  code: |-
-    data.action = 'trackUserActivity';
-    data.trackerCustomData = [{ key: "source", value: "google" },{ key: "target", value: "bms" }];
-
-    mock('sendPixel', (url, onSuccess, onFailure) => 
-      onSuccess()
-    );
-
-    const url = runCode(data);
-
-    assertThat(url).isEqualTo("https://track.dmp.bluems.com/v1/activity?acc=12345&e=pageView&t=abc123&source=google&target=bms");
-    assertApi("sendPixel").wasCalled();
-    assertApi("gtmOnSuccess").wasCalled();
+  code: "data.action = 'trackUserActivity';\ndata.trackerCustomData = [{ key: \"source\"\
+    , value: \"google\" },{ key: \"target\", value: \"bms\" }];\n\nmock('sendPixel',\
+    \ (url, onSuccess, onFailure) => \n  onSuccess()\n);\n\nconst url = runCode(data);\n\
+    \nassertThat(url).isEqualTo(\"https://track.dmp.bluems.com/v1/activity?acc=12345&e=pageView&t=abc123&source=google&target=bms\"\
+    );\nassertApi(\"sendPixel\").wasCalled();\nassertApi(\"gtmOnSuccess\").wasCalled();"
 - name: Check if validate Cookie Pool functionality
-  code: |-
-    data.action = 'cookiePool';
-
-    mock('injectScript', (url, onSuccess, onFailure) => 
-      onSuccess()
-    );
-
-    const url = runCode(data);
-
-    assertThat(url).isEqualTo("https://sync.cookie-pool.dmp.bluems.com/v1/script.min.js?datalayer=bms_cookie_pool_q");
-    assertApi("setInWindow").wasCalled();
-    assertApi("injectScript").wasCalled();
-    assertApi("gtmOnSuccess").wasCalled();
+  code: "data.action = 'cookiePool';\n\nmock('injectScript', (url, onSuccess, onFailure)\
+    \ => \n  onSuccess()\n);\n\nconst url = runCode(data);\n\nassertThat(url).isEqualTo(\"\
+    https://sync.cookie-pool.dmp.bluems.com/v1/script.min.js?datalayer=bms_cookie_pool_q\"\
+    );\nassertApi(\"setInWindow\").wasCalled();\nassertApi(\"injectScript\").wasCalled();\n\
+    assertApi(\"gtmOnSuccess\").wasCalled();"
 - name: Check if gtm fails when scripts are not injected correctly for cookie pool
-  code: |-
-    data.action = 'cookiePool';
-
-    mock('injectScript', (url, onSuccess, onFailure) => 
-      onFailure()
-    );
-    
-    const url = runCode(data);
-    
-    assertThat(url).isEqualTo("https://sync.cookie-pool.dmp.bluems.com/v1/script.min.js?datalayer=bms_cookie_pool_q");
-    assertApi("setInWindow").wasCalled();
-    assertApi("injectScript").wasCalled();
-    assertApi("gtmOnFailure").wasCalled();
+  code: "data.action = 'cookiePool';\n\nmock('injectScript', (url, onSuccess, onFailure)\
+    \ => \n  onFailure()\n);\n\nconst url = runCode(data);\n\nassertThat(url).isEqualTo(\"\
+    https://sync.cookie-pool.dmp.bluems.com/v1/script.min.js?datalayer=bms_cookie_pool_q\"\
+    );\nassertApi(\"setInWindow\").wasCalled();\nassertApi(\"injectScript\").wasCalled();\n\
+    assertApi(\"gtmOnFailure\").wasCalled();"
+- name: Check if script are injected loaded tag container correctly
+  code: "data.action = 'tagContainer';\n\nmock('injectScript', (url, onSuccess, onFailure)\
+    \ => \n  onSuccess()\n);\n\nconst url = runCode(data);\n\nassertThat(url).isEqualTo(\"\
+    https://tag.bluemsusercontent.com/v1/12345/abcd/script.min.js?datalayer=bms_tag_container_q\"\
+    );\nassertApi(\"injectScript\").wasCalled();\nassertApi(\"gtmOnSuccess\").wasCalled();\n\
+    assertApi(\"setInWindow\").wasCalled();"
+- name: Check if gtm fails when scripts are not injected correctly for tag container
+  code: "data.action = 'tagContainer';\n\nmock('injectScript', (url, onSuccess, onFailure)\
+    \ => \n  onFailure()\n);\n\nconst url = runCode(data);\n\nassertThat(url).isEqualTo(\"\
+    https://tag.bluemsusercontent.com/v1/12345/abcd/script.min.js?datalayer=bms_tag_container_q\"\
+    );\nassertApi(\"injectScript\").wasCalled();\nassertApi(\"gtmOnFailure\").wasCalled();\n\
+    assertApi(\"setInWindow\").wasCalled();"
 setup: |-
   var data = {
     accountId: "12345",
@@ -606,7 +657,8 @@ setup: |-
     cookiePoolId: "cookie_999",
     action: 'all',
     gtmOnSuccess: function () { },
-    gtmOnFailure: function () { }
+    gtmOnFailure: function () { },
+    tagContainerId: "abcd"
   };
 
 
