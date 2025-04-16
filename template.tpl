@@ -1,11 +1,3 @@
-___TERMS_OF_SERVICE___
-
-By creating or modifying this file you agree to Google Tag Manager's Community
-Template Gallery Developer Terms of Service available at
-https://developers.google.com/tag-manager/gallery-tos (or such other URL as
-Google may provide), as modified from time to time.
-
-
 ___INFO___
 
 {
@@ -77,7 +69,7 @@ ___TEMPLATE_PARAMETERS___
       },
       {
         "value": "tagContainer",
-        "displayValue": "Tag container"
+        "displayValue": "Include tag container"
       }
     ],
     "simpleValueType": true
@@ -250,8 +242,8 @@ ___TEMPLATE_PARAMETERS___
       },
       {
         "type": "SIMPLE_TABLE",
-        "name": "tagContainerCustomData",
-        "displayName": "Custom data",
+        "name": "tagContainerInputs",
+        "displayName": "Inputs",
         "simpleTableColumns": [
           {
             "defaultValue": "",
@@ -384,7 +376,7 @@ if (run('tagContainer')) {
   
   const bms_tag_container_q = {};
   
-  const dataArray = data.tagContainerCustomData || [];
+  const dataArray = data.tagContainerInputs || [];
 
   dataArray.forEach(row => {
     const key = encodeUriComponent(row.key);
