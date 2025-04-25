@@ -2,7 +2,7 @@ homepage: "https://bluems.com"
 documentation: "https://docs.bluems.com/en_us/third-party-integrations/google-tag-manager"
 versions:
   # Latest version
-  - sha: "5b91e9f9ff942ec3cadd3df7dbdf189d769da79b"
+  - sha: "93fe8c67b22464445b65a9f12a224d965638e28b"
     changeNotes: "Include tag container action."
   # Older versions
   - sha: "51a262a65edcb1b4304c7ccc23ad49ce7c8bad16"
