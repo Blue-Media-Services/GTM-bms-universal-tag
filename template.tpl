@@ -77,7 +77,7 @@ ___TEMPLATE_PARAMETERS___
       },
       {
         "value": "tagContainer",
-        "displayValue": "Include tag container"
+        "displayValue": "Include Tag Container"
       }
     ],
     "simpleValueType": true
